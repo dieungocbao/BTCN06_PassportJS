@@ -3,6 +3,8 @@ var router = express.Router()
 const User = require('../models/User')
 const { registerValidation, loginValidation } = require('../validation')
 const bcrypt = require('bcryptjs')
+const passport = require('passport')
+const jwt = require('jsonwebtoken')
 
 /* GET users listing. */
 router.post('/register', async function(req, res, next) {
@@ -31,13 +33,32 @@ router.post('/register', async function(req, res, next) {
   }
 })
 
-router.post('/login', async function(req, res, next) {d
-  const { error } = loginValidation(req.body)
-  if (error) return res.status(400).send(error.details[0].message)
+router.post('/login', (req, res, next) => {
+  passport.authenticate('local', { session: false }, (err, user, info) => {
+    console.log(err)
+    if (err || !user) {
+      return res.status(400).json({
+        message: info ? info.message : 'Login failed',
+        user: user
+      })
+    }
+    console.log(user)
+    const userRes = {
+      id: user._id,
+      name: user.name,
+      email: user.email
+    }
 
-  const { email, password } = req.body
+    req.login(user, { session: false }, err => {
+      if (err) {
+        res.send(err)
+      }
 
+      const token = jwt.sign(userRes, 'secretKey')
 
+      return res.json({ token })
+    })
+  })(req, res)
 })
 
 module.exports = router
